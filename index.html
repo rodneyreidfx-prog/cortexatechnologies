@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cortexa Technologies | High-Performance Web Design</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- GSAP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollToPlugin.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0F172A',
+                        accent: '#EF4444',
+                        background: '#F8FAFC'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Orbitron', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    letterSpacing: {
+                        widest: '.25em',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            overflow-x: hidden;
+            background-color: #F8FAFC;
+        }
+
+        /* View Container Styles */
+        .view-section {
+            width: 100%;
+            min-height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            visibility: hidden;
+            display: none; /* Hide fully to prevent scroll issues */
+        }
+        .view-section.active {
+            opacity: 1;
+            visibility: visible;
+            display: block;
+            position: relative;
+        }
+
+        .bento-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(15, 23, 42, 0.05);
+            border-radius: 24px;
+            transition: border-color 0.3s ease;
+            will-change: transform, opacity;
+        }
+
+        .text-gradient {
+            background: linear-gradient(135deg, #0F172A 0%, #EF4444 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        #entrance-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #0F172A;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        canvas#particleCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .hero-glow {
+            position: absolute;
+            width: 40vw;
+            height: 40vw;
+            background: radial-gradient(circle, rgba(239, 68, 68, 0.12) 0%, transparent 70%);
+            border-radius: 50%;
+            z-index: -1;
+            filter: blur(60px);
+        }
+
+        /* Work Silhouette Background */
+        .work-silhouette {
+            position: absolute;
+            top: 10%;
+            right: -10%;
+            width: 60vw;
+            height: 40vw;
+            border: 2px solid rgba(239, 68, 68, 0.1);
+            border-radius: 12px;
+            transform: perspective(1000px) rotateX(10deg) rotateY(-15deg) rotateZ(2deg);
+            z-index: -1;
+            pointer-events: none;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+        }
+        .work-silhouette::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 30px;
+            border-bottom: 2px solid rgba(239, 68, 68, 0.1);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            background: #E2E8F0;
+            border-radius: 4px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #EF4444;
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        /* Form Inputs */
+        .form-input {
+            width: 100%;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            border: 1px solid #E2E8F0;
+            background: rgba(255, 255, 255, 0.8);
+            transition: all 0.3s ease;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #EF4444;
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+        }
+
+        /* --- Brain Logo Styles --- */
+        .brain-path {
+            fill: none;
+            stroke: #ffffff;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        .brain-circuit {
+            fill: none;
+            stroke: #EF4444; /* Accent color for inner circuits */
+            stroke-width: 1.5;
+            stroke-linecap: round;
+            stroke-dasharray: 4 2;
+        }
+        .brain-connect {
+            fill: none;
+            stroke: #ffffff;
+            stroke-width: 1;
+            opacity: 0.5;
+        }
+
+        /* Nav Logo Specifics (Darker stroke for light background) */
+        .nav-logo .brain-path { stroke: #0F172A; }
+        .nav-logo .brain-circuit { stroke: #EF4444; }
+        .nav-logo .brain-connect { stroke: #0F172A; opacity: 0.3; }
+
+        .case-study-card:hover .study-image {
+            transform: scale(1.05);
+        }
+
+        /* Success Message hidden by default */
+        #success-message {
+            display: none;
+            opacity: 0;
+        }
+
+        /* Node dots initially hidden for animation */
+        .node-dot {
+            opacity: 0;
+        }
+
+        /* Firefox range input fix */
+        input[type=range]::-moz-range-track {
+            width: 100%;
+            height: 8px;
+            background: #E2E8F0;
+            border-radius: 4px;
+        }
+        input[type=range]::-moz-range-thumb {
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #EF4444;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+    </style>
+</head>
+<body class="font-sans text-primary">
+
+    <!-- Persistent Background Animation -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Cinematic Entrance Overlay -->
+    <div id="entrance-overlay">
+        <canvas id="particleCanvas"></canvas>
+        <div class="relative w-40 h-40 md:w-56 md:h-56 flex items-center justify-center mb-8 z-10">
+            <!-- Brain SVG -->
+            <svg viewBox="0 0 100 100" class="w-full h-full overflow-visible">
+                <g id="brain-structure" transform="translate(50,50)">
+                    <!-- Left Hemisphere -->
+                    <path class="brain-path" d="M -5 -30 C -25 -30, -40 -15, -40 10 C -40 35, -25 45, -5 45" />
+                    <path class="brain-circuit" d="M -30 -10 L -20 -10 L -15 -20" />
+                    <path class="brain-circuit" d="M -35 15 L -25 15 L -20 25" />
+                    <path class="brain-circuit" d="M -30 35 L -15 35" />
+
+                    <!-- Right Hemisphere -->
+                    <path class="brain-path" d="M 5 -30 C 25 -30, 40 -15, 40 10 C 40 35, 25 45, 5 45" />
+                    <path class="brain-circuit" d="M 30 -10 L 20 -10 L 15 -20" />
+                    <path class="brain-circuit" d="M 35 15 L 25 15 L 20 25" />
+                    <path class="brain-circuit" d="M 30 35 L 15 35" />
+
+                    <!-- Central Connections (The "Connecting" part) -->
+                    <line class="brain-connect" x1="-5" y1="-15" x2="5" y2="-15" />
+                    <line class="brain-connect" x1="-5" y1="0" x2="5" y2="0" />
+                    <line class="brain-connect" x1="-5" y1="15" x2="5" y2="15" />
+                    <line class="brain-connect" x1="-5" y1="30" x2="5" y2="30" />
+
+                    <!-- Connection Nodes -->
+                    <circle class="node-dot" cx="-5" cy="-15" r="1.5" fill="#EF4444" />
+                    <circle class="node-dot" cx="5" cy="-15" r="1.5" fill="#EF4444" />
+                    <circle class="node-dot" cx="-5" cy="0" r="1.5" fill="#EF4444" />
+                    <circle class="node-dot" cx="5" cy="0" r="1.5" fill="#EF4444" />
+                </g>
+            </svg>
+        </div>
+        <h1 id="brand-name" class="font-display tracking-widest text-4xl md:text-6xl font-black text-white opacity-0 relative z-10 text-center">
+            CORTEXA <span class="text-accent">TECHNOLOGIES</span>
+        </h1>
+        <p id="brand-tagline" class="font-mono text-slate-400 mt-4 opacity-0 tracking-widest uppercase text-xs md:text-sm font-medium z-10">
+            &lt;System_Status: Optimization_Active /&gt;
+        </p>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full px-6 py-6 z-50 flex justify-between items-center bg-background/80 backdrop-blur-md transition-all duration-300">
+        <a href="#" onclick="switchView('home'); return false;" class="flex items-center gap-3 cursor-pointer group">
+            <!-- Mini Brain Logo in Nav -->
+            <div class="w-8 h-8 nav-logo group-hover:scale-110 transition-transform duration-300">
+                <svg viewBox="0 0 100 100" class="w-full h-full overflow-visible">
+                    <g transform="translate(50,50) scale(0.9)">
+                        <path class="brain-path" d="M -5 -30 C -25 -30, -40 -15, -40 10 C -40 35, -25 45, -5 45" />
+                        <path class="brain-circuit" d="M -30 -10 L -20 -10 L -15 -20" />
+                        <path class="brain-path" d="M 5 -30 C 25 -30, 40 -15, 40 10 C 40 35, 25 45, 5 45" />
+                        <path class="brain-circuit" d="M 30 -10 L 20 -10 L 15 -20" />
+                        <line class="brain-connect" x1="-5" y1="0" x2="5" y2="0" />
+                        <line class="brain-connect" x1="-5" y1="15" x2="5" y2="15" />
+                    </g>
+                </svg>
+            </div>
+            <span class="font-display font-bold text-xl tracking-tight text-primary">CORTEXA.</span>
+        </a>
+
+        <div class="hidden md:flex space-x-8 text-sm font-medium uppercase tracking-wider">
+            <!-- Nav Links -->
+            <button onclick="switchView('home')" class="hover:text-accent transition-colors text-left">Home</button>
+            <button onclick="switchView('work')" class="hover:text-accent transition-colors text-left">Work</button>
+            <button onclick="switchView('proposal')" class="hover:text-accent transition-colors text-left">Proposal</button>
+        </div>
+        <button id="menu-toggle" class="md:hidden flex flex-col space-y-1.5 p-2">
+            <div class="w-6 h-0.5 bg-primary"></div>
+            <div class="w-6 h-0.5 bg-primary"></div>
+        </button>
+        <button onclick="switchView('proposal')" class="hidden md:block bg-primary text-white px-6 py-2.5 rounded-full text-sm font-medium hover:bg-slate-800 transition-all">
+            Get My Proposal
+        </button>
+    </nav>
+
+    <!-- Main Container -->
+    <div id="app-container" class="pt-32">
+
+        <!-- HOME VIEW -->
+        <div id="home-view" class="view-section active opacity-0">
+            <section class="max-w-7xl mx-auto px-6 mb-24 relative hero-section">
+                <div class="hero-glow top-0 -left-20"></div>
+                <!-- Hero -->
+                <div class="text-center md:text-left max-w-4xl mx-auto md:mx-0">
+                    <span class="hero-badge inline-block px-4 py-1.5 rounded-full bg-accent/10 text-accent text-xs font-mono font-bold uppercase tracking-widest mb-6">
+                        :: Conversion_Protocol_Initiated
+                    </span>
+                    <h1 class="hero-title font-display text-5xl md:text-8xl font-black leading-tight mb-8 text-gradient tracking-tight">
+                        YOUR CURRENT WEBSITE <br class="hidden md:block"> IS LOSING SALES.
+                    </h1>
+                    <p class="hero-text text-lg md:text-xl text-slate-500 mb-10 max-w-2xl leading-relaxed">
+                        We don't just build "pretty" sites. We engineer high-conversion digital assets that turn your existing traffic into a predictable revenue stream.
+                    </p>
+                    <div class="hero-btns flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 justify-center md:justify-start">
+                        <button onclick="switchView('work')" class="bg-primary text-white px-8 py-4 rounded-2xl font-semibold hover:scale-105 transition-transform inline-block text-center cursor-pointer">
+                            View Case Studies
+                        </button>
+                        <a href="https://pagespeed.web.dev/" target="_blank" rel="noopener noreferrer" class="bg-white border border-slate-200 px-8 py-4 rounded-2xl font-semibold hover:bg-slate-50 transition-colors inline-block text-center text-primary">
+                            Free Performance Audit
+                        </a>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-3 font-mono opacity-80 md:ml-1">
+                        <span class="text-accent">*</span> INSTRUCTION: Copy your website URL to paste into the auditor.
+                    </p>
+                </div>
+            </section>
+
+            <!-- Bento Grid Section -->
+            <section class="max-w-7xl mx-auto px-6 py-20">
+                <div id="bento-container" class="grid grid-cols-1 md:grid-cols-12 gap-6 auto-rows-[240px]">
+                    <!-- ROI Calculator -->
+                    <div class="md:col-span-8 md:row-span-2 bento-card p-8 flex flex-col justify-between overflow-hidden relative" data-speed="0.05">
+                        <div class="relative z-10">
+                            <h3 class="font-display text-2xl font-bold mb-2">Website Impact Calculator</h3>
+                            <p class="text-slate-500 text-sm">See how optimizing your site's conversion rate impacts your bottom line.</p>
+                        </div>
+                        <div class="my-10 relative z-10">
+                            <label class="block text-sm font-bold uppercase tracking-wider text-slate-400 mb-4">Current Monthly Traffic: <span id="traffic-value" class="text-primary font-mono">10,000</span> Visitors</label>
+                            <input type="range" id="roi-slider" min="1000" max="100000" step="1000" value="10000" class="cursor-pointer">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 relative z-10">
+                            <div class="bg-slate-50/50 backdrop-blur p-6 rounded-2xl">
+                                <p class="text-xs font-bold uppercase text-slate-400 mb-1">Extra Monthly Leads</p>
+                                <p id="lead-count" class="text-4xl font-display font-bold text-primary">0</p>
+                                <p class="text-[10px] text-slate-400 mt-1">Based on +2.5% CRO lift</p>
+                            </div>
+                            <div class="bg-slate-50/50 backdrop-blur p-6 rounded-2xl border-l-4 border-accent">
+                                <p class="text-xs font-bold uppercase text-slate-400 mb-1">Projected Annual Revenue</p>
+                                <p id="rev-count" class="text-4xl font-display font-bold text-accent">$0</p>
+                                <p class="text-[10px] text-slate-400 mt-1">Assuming $500 Lead Value</p>
+                            </div>
+                        </div>
+                        <div class="absolute -bottom-10 -right-10 w-64 h-64 bg-accent/5 rounded-full blur-3xl"></div>
+                    </div>
+                    <!-- Strategy Box -->
+                    <div class="md:col-span-4 md:row-span-1 bento-card p-8 bg-primary text-white group overflow-hidden" data-speed="0.12">
+                        <div class="flex flex-col h-full justify-between">
+                            <div class="w-10 h-10 bg-accent rounded-lg flex items-center justify-center mb-4">
+                                <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <div>
+                                <h3 class="font-display text-xl font-bold">Conversion Engine</h3>
+                                <p class="text-slate-400 text-sm mt-2">UX/UI designed to guide users straight to checkout.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Stat Box -->
+                    <div class="md:col-span-4 md:row-span-1 bento-card p-8 flex flex-col justify-center items-center text-center" data-speed="0.08">
+                        <div class="text-4xl font-display font-bold text-primary">100+</div>
+                        <p class="text-slate-400 text-xs font-bold uppercase mt-2">Sites Redesigned</p>
+                    </div>
+                    <!-- Tech Stack -->
+                    <div class="md:col-span-4 md:row-span-1 bento-card p-8 flex flex-col justify-between hover:border-accent transition-colors cursor-pointer" data-speed="0.1">
+                        <h3 class="font-display text-xl font-bold">The Cortexa Edge</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-bold font-mono">SEO READY</span>
+                            <span class="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-bold font-mono">3.2s LOAD</span>
+                            <span class="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-bold font-mono">RESPONSIVE</span>
+                        </div>
+                    </div>
+                    <!-- CTA Box -->
+                    <div class="md:col-span-8 md:row-span-1 bento-card p-8 bg-accent flex flex-col md:flex-row items-center justify-between overflow-hidden relative" data-speed="0.03">
+                        <div class="relative z-10 mb-6 md:mb-0">
+                            <h3 class="font-display text-3xl font-bold text-primary">Stop Leaking Traffic.</h3>
+                            <p class="text-primary/70 font-medium">Get your conversion audit in 24 hours.</p>
+                        </div>
+                        <button onclick="switchView('proposal')" class="bg-primary text-white px-10 py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all z-10 whitespace-nowrap">
+                            Audit My Website
+                        </button>
+                        <div class="absolute right-0 top-0 w-32 h-full bg-white/10 -skew-x-12 transform translate-x-10"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- WORK VIEW -->
+        <div id="work-view" class="view-section">
+            <section class="max-w-7xl mx-auto px-6 mb-12 relative">
+                <!-- Silhouette Background -->
+                <div class="work-silhouette"></div>
+
+                <div class="hero-glow top-0 -left-20 opacity-50"></div>
+
+                <div class="text-center md:text-left max-w-4xl mx-auto md:mx-0 pt-12">
+                    <span class="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-accent text-xs font-mono font-bold uppercase tracking-widest mb-6">
+                        :: Portfolio_Database_Access
+                    </span>
+                    <h1 class="font-display text-5xl md:text-8xl font-black leading-tight mb-8 text-gradient tracking-tight">
+                        ENGINEERED <br class="hidden md:block"> FOR IMPACT.
+                    </h1>
+                    <div class="flex items-start space-x-3 mb-10 max-w-2xl">
+                        <div class="w-1.5 h-1.5 bg-accent rounded-full mt-2.5 flex-shrink-0"></div>
+                        <p class="text-lg md:text-xl text-slate-500 leading-relaxed font-medium">
+                            We create high speed, high performing websites that capture the audience.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Case Studies Section -->
+            <section class="max-w-7xl mx-auto px-6 py-12">
+                 <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- Project 1 - Cortexa -->
+                    <a href="https://cortexa.tech" target="_blank" rel="noopener noreferrer" class="bento-card case-study-card overflow-hidden group cursor-pointer hover:border-accent transition-colors">
+                        <div class="h-48 bg-slate-100 relative overflow-hidden">
+                            <div class="study-image absolute inset-0 bg-primary/5 transition-transform duration-700 ease-out flex items-center justify-center">
+                                <svg class="w-20 h-20 text-accent/20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                            </div>
+                            <div class="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-primary">Agency</div>
+                        </div>
+                        <div class="p-8">
+                            <h3 class="font-display text-xl font-bold mb-2">Cortexa Technologies</h3>
+                            <p class="text-slate-500 text-sm mb-6">High-performance web design agency with cinematic animations.</p>
+                            <div class="flex items-center space-x-2 text-accent group-hover:translate-x-2 transition-transform">
+                                <span class="text-sm font-bold uppercase tracking-wider">View Live</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                            </div>
+                        </div>
+                    </a>
+                    <!-- Project 2 - The Realtor Kel -->
+                    <a href="https://therealtorkel.netlify.app" target="_blank" rel="noopener noreferrer" class="bento-card case-study-card overflow-hidden group cursor-pointer hover:border-accent transition-colors">
+                        <div class="h-48 bg-slate-100 relative overflow-hidden">
+                            <div class="study-image absolute inset-0 bg-accent/5 transition-transform duration-700 ease-out flex items-center justify-center">
+                                 <svg class="w-20 h-20 text-primary/20" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                            </div>
+                            <div class="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-primary">Real Estate</div>
+                        </div>
+                        <div class="p-8">
+                            <h3 class="font-display text-xl font-bold mb-2">The Realtor Kel</h3>
+                            <p class="text-slate-500 text-sm mb-6">Professional real estate agent portfolio with property showcases.</p>
+                            <div class="flex items-center space-x-2 text-accent group-hover:translate-x-2 transition-transform">
+                                <span class="text-sm font-bold uppercase tracking-wider">View Live</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                            </div>
+                        </div>
+                    </a>
+                    <!-- Project 3 - DiGui -->
+                    <a href="https://digui.netlify.app" target="_blank" rel="noopener noreferrer" class="bento-card case-study-card overflow-hidden group cursor-pointer hover:border-accent transition-colors">
+                        <div class="h-48 bg-slate-100 relative overflow-hidden">
+                            <div class="study-image absolute inset-0 bg-primary/5 transition-transform duration-700 ease-out flex items-center justify-center">
+                                 <svg class="w-20 h-20 text-accent/20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg>
+                            </div>
+                            <div class="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-primary">Education</div>
+                        </div>
+                        <div class="p-8">
+                            <h3 class="font-display text-xl font-bold mb-2">DiGui</h3>
+                            <p class="text-slate-500 text-sm mb-6">Modern educational platform with interactive learning experience.</p>
+                            <div class="flex items-center space-x-2 text-accent group-hover:translate-x-2 transition-transform">
+                                <span class="text-sm font-bold uppercase tracking-wider">View Live</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                            </div>
+                        </div>
+                    </a>
+                    <!-- Project 4 - The Gravel Road -->
+                    <a href="https://thegravelroad.netlify.app" target="_blank" rel="noopener noreferrer" class="bento-card case-study-card overflow-hidden group cursor-pointer hover:border-accent transition-colors">
+                        <div class="h-48 bg-slate-100 relative overflow-hidden">
+                            <div class="study-image absolute inset-0 bg-accent/5 transition-transform duration-700 ease-out flex items-center justify-center">
+                                 <svg class="w-20 h-20 text-primary/20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>
+                            </div>
+                            <div class="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-primary">Automotive</div>
+                        </div>
+                        <div class="p-8">
+                            <h3 class="font-display text-xl font-bold mb-2">The Gravel Road</h3>
+                            <p class="text-slate-500 text-sm mb-6">Automotive enthusiast platform with sleek visual design.</p>
+                            <div class="flex items-center space-x-2 text-accent group-hover:translate-x-2 transition-transform">
+                                <span class="text-sm font-bold uppercase tracking-wider">View Live</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                            </div>
+                        </div>
+                    </a>
+                    <!-- Project 5 - Portfolio -->
+                    <a href="https://voluble-frangollo-fe6a07.netlify.app" target="_blank" rel="noopener noreferrer" class="bento-card case-study-card overflow-hidden group cursor-pointer hover:border-accent transition-colors">
+                        <div class="h-48 bg-slate-100 relative overflow-hidden">
+                            <div class="study-image absolute inset-0 bg-primary/5 transition-transform duration-700 ease-out flex items-center justify-center">
+                                 <svg class="w-20 h-20 text-accent/20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                            </div>
+                            <div class="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-primary">Portfolio</div>
+                        </div>
+                        <div class="p-8">
+                            <h3 class="font-display text-xl font-bold mb-2">Creative Portfolio</h3>
+                            <p class="text-slate-500 text-sm mb-6">Personal portfolio showcasing creative work and projects.</p>
+                            <div class="flex items-center space-x-2 text-accent group-hover:translate-x-2 transition-transform">
+                                <span class="text-sm font-bold uppercase tracking-wider">View Live</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </section>
+        </div>
+
+        <!-- PROPOSAL VIEW -->
+        <div id="proposal-view" class="view-section">
+            <section class="max-w-4xl mx-auto px-6 py-12 relative">
+                <div class="hero-glow top-0 right-0 opacity-40"></div>
+
+                <div class="text-center mb-12">
+                     <span class="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-accent text-xs font-mono font-bold uppercase tracking-widest mb-6">
+                        :: Initiation_Sequence_Ready
+                    </span>
+                    <h1 class="font-display text-5xl md:text-7xl font-black mb-4 text-gradient">
+                        GET STARTED!
+                    </h1>
+                    <p class="text-slate-500 text-lg">Tell us about your project to unlock your digital potential.</p>
+                </div>
+
+                <div class="bento-card p-8 md:p-12 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full blur-3xl"></div>
+
+                    <!-- Netlify Form with AJAX Handler -->
+                    <div id="form-container">
+                        <form id="contact-form" name="cortexa-proposal" method="POST" data-netlify="true" class="space-y-6 relative z-10">
+                            <!-- Hidden Input for Netlify -->
+                            <input type="hidden" name="form-name" value="cortexa-proposal" />
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-400 mb-2 font-mono">Full Name</label>
+                                    <input type="text" name="name" required class="form-input" placeholder="John Doe">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-400 mb-2 font-mono">Email Address</label>
+                                    <input type="email" name="email" required class="form-input" placeholder="john@company.com">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-400 mb-2 font-mono">Phone Number</label>
+                                    <input type="tel" name="phone" class="form-input" placeholder="+1 (555) 000-0000">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-400 mb-2 font-mono">Website URL</label>
+                                    <input type="url" name="website" class="form-input" placeholder="https://currentsite.com">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold uppercase text-slate-400 mb-2 font-mono">Project Notes</label>
+                                <textarea name="notes" rows="4" class="form-input" placeholder="Tell us about your goals, timeline, and current pain points..."></textarea>
+                            </div>
+
+                            <div class="pt-4">
+                                <button type="submit" class="w-full bg-primary text-white py-4 rounded-xl font-display font-bold text-lg tracking-wide hover:bg-slate-800 transition-all hover:scale-[1.01] active:scale-95 shadow-lg shadow-primary/20">
+                                    SUBMIT PROPOSAL REQUEST
+                                </button>
+                            </div>
+
+                            <p class="text-center text-xs text-slate-400 mt-4">
+                                By submitting this form, you agree to our privacy policy. We respect your data.
+                            </p>
+                        </form>
+                    </div>
+
+                    <!-- Success State (Hidden by default) -->
+                    <div id="success-message" class="absolute inset-0 flex flex-col items-center justify-center text-center bg-white/95 backdrop-blur z-20 p-8">
+                        <div class="w-20 h-20 bg-accent/10 rounded-full flex items-center justify-center mb-6">
+                            <svg class="w-10 h-10 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                        <h2 class="font-display text-3xl font-bold text-primary mb-2">Transmission Received</h2>
+                        <p class="text-slate-500 max-w-md">Your proposal request has been logged in our secure database. A specialist will analyze your data and respond within 24 hours.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+    </div>
+
+    <!-- Mobile Menu Overlay -->
+    <div id="mobile-menu" class="fixed inset-0 bg-primary z-[60] flex flex-col items-center justify-center transform translate-y-full transition-transform duration-500">
+        <button id="menu-close" class="absolute top-8 right-8 text-white p-4">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+        <div class="flex flex-col space-y-8 text-center">
+            <button onclick="switchView('home'); document.getElementById('mobile-menu').classList.add('translate-y-full')" class="text-white text-3xl font-display font-bold">Home</button>
+            <button onclick="switchView('work'); document.getElementById('mobile-menu').classList.add('translate-y-full')" class="text-white text-3xl font-display font-bold">Work</button>
+            <button onclick="switchView('proposal'); document.getElementById('mobile-menu').classList.add('translate-y-full')" class="text-white text-3xl font-display font-bold">Proposal</button>
+        </div>
+    </div>
+
+    <script>
+        gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
+
+        // --- View Switching Logic ---
+        function switchView(viewName) {
+            const targetId = viewName + '-view';
+            const allViews = document.querySelectorAll('.view-section');
+            const targetView = document.getElementById(targetId);
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // Find current active view
+            const currentView = document.querySelector('.view-section.active');
+
+            if (currentView && currentView.id === targetId) return;
+
+            if (currentView) {
+                gsap.to(currentView, {
+                    opacity: 0,
+                    duration: 0.4,
+                    onComplete: () => {
+                        currentView.classList.remove('active');
+                        activateView(targetView);
+                    }
+                });
+            } else {
+                activateView(targetView);
+            }
+
+            function activateView(el) {
+                if(!el) return;
+                el.classList.add('active');
+                gsap.fromTo(el,
+                    { opacity: 0, y: 20 },
+                    { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }
+                );
+                ScrollTrigger.refresh();
+            }
+        }
+
+        // --- 1. Background "Neural Mesh" Animation ---
+        const bgCanvas = document.getElementById('bg-canvas');
+        const bgCtx = bgCanvas.getContext('2d');
+        let nodes = [];
+        let mouse = { x: null, y: null };
+
+        function initBg() {
+            bgCanvas.width = window.innerWidth;
+            bgCanvas.height = window.innerHeight;
+            nodes = [];
+            for(let i=0; i < 60; i++) {
+                nodes.push({
+                    x: Math.random() * bgCanvas.width,
+                    y: Math.random() * bgCanvas.height,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    size: Math.random() * 2 + 1
+                });
+            }
+        }
+
+        function drawBg() {
+            bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+            bgCtx.strokeStyle = 'rgba(239, 68, 68, 0.15)';
+            bgCtx.fillStyle = 'rgba(239, 68, 68, 0.4)';
+
+            nodes.forEach((n, i) => {
+                n.x += n.vx;
+                n.y += n.vy;
+                if(n.x < 0) n.x = bgCanvas.width;
+                if(n.x > bgCanvas.width) n.x = 0;
+                if(n.y < 0) n.y = bgCanvas.height;
+                if(n.y > bgCanvas.height) n.y = 0;
+
+                bgCtx.beginPath();
+                bgCtx.arc(n.x, n.y, n.size, 0, Math.PI * 2);
+                bgCtx.fill();
+
+                for(let j=i+1; j < nodes.length; j++) {
+                    const n2 = nodes[j];
+                    const dist = Math.hypot(n.x - n2.x, n.y - n2.y);
+                    if(dist < 150) {
+                        bgCtx.lineWidth = 1 - dist/150;
+                        bgCtx.beginPath();
+                        bgCtx.moveTo(n.x, n.y);
+                        bgCtx.lineTo(n2.x, n2.y);
+                        bgCtx.stroke();
+                    }
+                }
+            });
+            requestAnimationFrame(drawBg);
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            nodes.forEach(n => {
+                const d = Math.hypot(n.x - mouse.x, n.y - mouse.y);
+                if(d < 200) {
+                    n.x += (n.x - mouse.x) * 0.005;
+                    n.y += (n.y - mouse.y) * 0.005;
+                }
+            });
+        });
+
+        // --- 2. Entrance Animation ---
+        const entranceTl = gsap.timeline({ defaults: { ease: "power3.out" } });
+        const pCanvas = document.getElementById('particleCanvas');
+        const pCtx = pCanvas.getContext('2d');
+        let entranceParticles = [];
+
+        function initEntrance() {
+            pCanvas.width = window.innerWidth;
+            pCanvas.height = window.innerHeight;
+            for(let i=0; i<80; i++) {
+                entranceParticles.push({
+                    x: Math.random() * pCanvas.width,
+                    y: pCanvas.height + Math.random() * 100,
+                    size: Math.random() * 5 + 2,
+                    speed: Math.random() * 2 + 1,
+                    alpha: Math.random() * 0.5 + 0.1
+                });
+            }
+        }
+
+        function drawEntrance() {
+            if(!entranceParticles.length) return;
+            pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+            pCtx.fillStyle = '#EF4444';
+            entranceParticles.forEach(p => {
+                p.y -= p.speed;
+                if(p.y < -10) p.y = pCanvas.height + 10;
+                pCtx.globalAlpha = p.alpha;
+                pCtx.beginPath();
+                pCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                pCtx.fill();
+            });
+            requestAnimationFrame(drawEntrance);
+        }
+
+        window.addEventListener('load', () => {
+            initBg();
+            drawBg();
+            initEntrance();
+            drawEntrance();
+
+            // Prepare paths for drawing - get all SVG paths and lines
+            const brainPaths = document.querySelectorAll('#brain-structure .brain-path');
+            const brainCircuits = document.querySelectorAll('#brain-structure .brain-circuit');
+            const brainConnects = document.querySelectorAll('#brain-structure .brain-connect');
+
+            // Set up stroke dash for path animation
+            brainPaths.forEach(path => {
+                if(path.getTotalLength) {
+                    const length = path.getTotalLength();
+                    path.style.strokeDasharray = length;
+                    path.style.strokeDashoffset = length;
+                }
+            });
+
+            brainCircuits.forEach(path => {
+                if(path.getTotalLength) {
+                    const length = path.getTotalLength();
+                    path.style.strokeDasharray = length;
+                    path.style.strokeDashoffset = length;
+                }
+            });
+
+            brainConnects.forEach(line => {
+                if(line.getTotalLength) {
+                    const length = line.getTotalLength();
+                    line.style.strokeDasharray = length;
+                    line.style.strokeDashoffset = length;
+                }
+            });
+
+            // Entrance Timeline - Brain Drawing Animation
+            entranceTl
+              // 1. Draw Brain Hemisphere Paths
+              .to(brainPaths, { strokeDashoffset: 0, duration: 2, stagger: 0.15, ease: "power2.inOut" })
+              // 2. Draw the circuit paths inside hemispheres
+              .to(brainCircuits, { strokeDashoffset: 0, duration: 1.2, stagger: 0.1, ease: "power2.out" }, "-=1")
+              // 3. Connect hemispheres (draw connection lines)
+              .to(brainConnects, { strokeDashoffset: 0, duration: 0.6, stagger: 0.1, ease: "power2.out" }, "-=0.3")
+              // 4. Pop in the connection nodes
+              .to('.node-dot', { opacity: 1, scale: 1, duration: 0.4, stagger: 0.08, ease: "back.out(1.7)" }, "-=0.3")
+              // 5. Reveal Brand Name
+              .to("#brand-name", { opacity: 1, y: 0, duration: 1.5, ease: "power4.out" }, "-=0.2")
+              .to("#brand-tagline", { opacity: 1, y: 0, duration: 1 }, "-=1")
+              // 6. Lift Overlay
+              .to("#entrance-overlay", {
+                  y: "-100%", duration: 1.2, ease: "expo.inOut", delay: 0.5,
+                  onComplete: () => {
+                      entranceParticles = [];
+                      gsap.to("#home-view", { opacity: 1, duration: 0.5 });
+                  }
+              })
+              .from(".hero-badge, .hero-title, .hero-text, .hero-btns", {
+                  y: 30, opacity: 0, stagger: 0.1, duration: 1, ease: "power3.out"
+              }, "-=0.2");
+
+            initScrollEffects();
+        });
+
+        // --- 3. Advanced Scroll Effects ---
+        function initScrollEffects() {
+            let proxy = { skew: 0 },
+                setter = gsap.quickSetter(".bento-card", "skewY", "deg"),
+                clamp = gsap.utils.clamp(-5, 5);
+
+            ScrollTrigger.create({
+                onUpdate: (self) => {
+                    let skew = clamp(self.getVelocity() / -300);
+                    if (Math.abs(skew) > Math.abs(proxy.skew)) {
+                        proxy.skew = skew;
+                        gsap.to(proxy, {
+                            skew: 0, duration: 0.8, ease: "power3", overwrite: true, onUpdate: () => setter(proxy.skew)
+                        });
+                    }
+                }
+            });
+
+            gsap.utils.toArray(".bento-card").forEach((card, i) => {
+                const speed = parseFloat(card.dataset.speed) || 0.1;
+                gsap.from(card, {
+                    scrollTrigger: {
+                        trigger: card, start: "top bottom-=100", toggleActions: "play none none none"
+                    },
+                    y: 60, opacity: 0, duration: 1, ease: "power2.out"
+                });
+                gsap.to(card, {
+                    y: (i) => -ScrollTrigger.maxScroll(window) * speed,
+                    ease: "none",
+                    scrollTrigger: { trigger: "#bento-container", start: "top bottom", end: "bottom top", scrub: true }
+                });
+            });
+
+            gsap.to(".hero-section", {
+                y: 150, opacity: 0.3,
+                scrollTrigger: { trigger: ".hero-section", start: "top top", end: "bottom top", scrub: true }
+            });
+
+            // Case Study Appear/Disappear
+            gsap.utils.toArray(".case-study-card").forEach((card) => {
+                gsap.fromTo(card,
+                    { opacity: 0, y: 100, scale: 0.95 },
+                    {
+                        opacity: 1, y: 0, scale: 1, duration: 0.8, ease: "power3.out",
+                        scrollTrigger: {
+                            trigger: card, start: "top bottom-=50", end: "bottom top+=50", toggleActions: "play reverse play reverse"
+                        }
+                    }
+                );
+            });
+        }
+
+        // --- 4. ROI Calculator Logic ---
+        const slider = document.getElementById('roi-slider');
+        const trafficLabel = document.getElementById('traffic-value');
+        const leadDisplay = document.getElementById('lead-count');
+        const revDisplay = document.getElementById('rev-count');
+        let currentValues = { leads: 0, rev: 0 };
+
+        function updateROI() {
+            const traffic = parseInt(slider.value);
+            trafficLabel.innerText = `${traffic.toLocaleString()}`;
+            const extraLeads = Math.floor(traffic * 0.025);
+            const annualRevGain = extraLeads * 500 * 12;
+
+            gsap.to(currentValues, {
+                leads: extraLeads, rev: annualRevGain, duration: 0.8, ease: "power2.out",
+                onUpdate: () => {
+                    leadDisplay.innerText = `+${Math.floor(currentValues.leads).toLocaleString()}`;
+                    revDisplay.innerText = `$${Math.floor(currentValues.rev).toLocaleString()}`;
+                }
+            });
+        }
+        slider.addEventListener('input', updateROI);
+        setTimeout(updateROI, 4000);
+
+        // --- 5. Mobile Menu ---
+        const menuToggle = document.getElementById('menu-toggle');
+        const menuClose = document.getElementById('menu-close');
+        const mobileMenu = document.getElementById('mobile-menu');
+        menuToggle.addEventListener('click', () => mobileMenu.classList.remove('translate-y-full'));
+        menuClose.addEventListener('click', () => mobileMenu.classList.add('translate-y-full'));
+
+        window.addEventListener('resize', () => {
+            initBg();
+            initEntrance();
+        });
+
+        // --- 6. Netlify Form AJAX Submission ---
+        const contactForm = document.getElementById('contact-form');
+        const formContainer = document.getElementById('form-container');
+        const successMessage = document.getElementById('success-message');
+
+        if(contactForm) {
+            contactForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const form = e.target;
+                const formData = new FormData(form);
+
+                // Encode form data as URL search params
+                const urlEncodedData = new URLSearchParams(formData).toString();
+
+                fetch("/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: urlEncodedData
+                })
+                .then(() => {
+                    // Animate Form Out
+                    gsap.to(formContainer, {
+                        opacity: 0,
+                        y: -20,
+                        duration: 0.5,
+                        onComplete: () => {
+                            formContainer.style.display = 'none';
+                            successMessage.style.display = 'flex';
+
+                            // Animate Success Message In
+                            gsap.fromTo(successMessage,
+                                { opacity: 0, scale: 0.9 },
+                                { opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.7)" }
+                            );
+                        }
+                    });
+                })
+                .catch((error) => {
+                    alert("Submission error. Please check your connection.");
+                    console.error(error);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
